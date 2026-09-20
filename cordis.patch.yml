@@ -1,0 +1,21 @@
+# dsh-clawd-extras：插入一个宿主侧插件，把 DSH 的公开事件转发给 Clawd。
+# Clawd 端口由插件从 ~/.clawd/runtime.json 发现，这里不配置端口。
+# debugLogPath / paramsPath 留空时默认落在本包目录（debug.log / params.json）。
+- insert:
+    - id: dsh-clawd-extras
+      name: dsh-clawd-extras
+      config:
+        contextUsage: true
+        approvalNotification: true
+        subagentJuggling: true
+        compactionSweeping: true
+        balance:
+          enabled: true
+          threshold: 20            # 元；低于它开始提醒，低于一半升级为 error
+          currency: CNY
+          apiKeyEnv: DEEPSEEK_API_KEY
+          baseUrl: https://api.deepseek.com
+          refreshMs: 300000        # 5 分钟查一次余额（最小 60000）
+          mode: flash              # flash | sticky
+          flashMs: 12000           # flash 模式下显示多久
+          remindEveryMs: 1800000   # 仍低于阈值时每 30 分钟再闪一次（0 = 关）

@@ -1,0 +1,50 @@
+{
+  "name": "dsh-clawd-extras",
+  "version": "0.5.3",
+  "private": true,
+  "type": "module",
+  "description": "Clawd on Desk bridge for DeepSeek Harness, extended: context usage, approval/juggling/compaction signals, balance alerts.",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./client.js"
+  },
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-api-remotes"
+      ],
+      "platform": "web"
+    }
+  },
+  "files": [
+    "lib/",
+    "client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE",
+    "params.example.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HarveyZed/clawd-whale-girl.git"
+  },
+  "homepage": "https://github.com/HarveyZed/clawd-whale-girl#readme",
+  "bugs": {
+    "url": "https://github.com/HarveyZed/clawd-whale-girl/issues"
+  },
+  "author": "HarveyZed",
+  "keywords": [
+    "clawd-on-desk",
+    "deepseek-harness",
+    "dsh-plugin",
+    "desktop-pet",
+    "theme"
+  ]
+}

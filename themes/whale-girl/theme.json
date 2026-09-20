@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "name": "鲸鱼娘 Whale Girl",
+  "author": "art: vlln (MIT) · theme: local",
+  "version": "1.5.0",
+  "description": "鲸鱼娘桌宠主题。素材来自 vlln/whale-girl（MIT）。v1.5：sweeping 不再复用 working，改用可分辨的 think 占位（待专用的整理/清扫素材到位后替换）。",
+  "_comment_license": "Artwork: vlln/whale-girl (MIT, Copyright (c) 2026 Sam Gao). Character is community fan-art; credit the author when redistributing.",
+  "customization": {
+    "petTint": false
+  },
+  "viewBox": {
+    "x": 0,
+    "y": 0,
+    "width": 256,
+    "height": 256
+  },
+  "layout": {
+    "contentBox": {
+      "x": 27,
+      "y": 31,
+      "width": 200,
+      "height": 225
+    },
+    "centerX": 127,
+    "baselineY": 256,
+    "visibleHeightRatio": 0.88,
+    "baselineBottomRatio": 0
+  },
+  "hitBoxes": {
+    "default": {
+      "x": 27,
+      "y": 31,
+      "w": 200,
+      "h": 225
+    },
+    "sleeping": {
+      "x": 35,
+      "y": 55,
+      "w": 186,
+      "h": 201
+    },
+    "wide": {
+      "x": 20,
+      "y": 28,
+      "w": 212,
+      "h": 228
+    }
+  },
+  "eyeTracking": {
+    "enabled": false
+  },
+  "sleepSequence": {
+    "mode": "direct"
+  },
+  "states": {
+    "idle": [
+      "idle.webp"
+    ],
+    "thinking": [
+      "thinking.webp"
+    ],
+    "working": [
+      "working.webp"
+    ],
+    "sleeping": [
+      "sleeping.webp"
+    ],
+    "waking": [
+      "waking.webp"
+    ],
+    "error": [
+      "error.webp"
+    ],
+    "attention": [
+      "attention.webp"
+    ],
+    "notification": [
+      "notification.webp"
+    ],
+    "juggling": [
+      "juggling.webp"
+    ],
+    "roam": [
+      "roam.webp"
+    ],
+    "sweeping": [
+      "thinking.webp"
+    ]
+  },
+  "reactions": {
+    "drag": {
+      "file": "react-drag.webp",
+      "fileLeft": "react-drag-left.webp",
+      "fileRight": "react-drag-right.webp"
+    },
+    "clickLeft": {
+      "file": "react-left.webp",
+      "duration": 2500
+    },
+    "clickRight": {
+      "file": "react-right.webp",
+      "duration": 2500
+    },
+    "annoyed": {
+      "file": "react-double.webp",
+      "duration": 3000
+    },
+    "double": {
+      "files": [
+        "annoyed.webp"
+      ],
+      "duration": 3000
+    }
+  },
+  "roamFlipAssets": true
+}

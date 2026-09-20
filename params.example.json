@@ -1,0 +1,12 @@
+{
+  "_comment": "改这个文件即可，插件每 3 秒检查一次，无需重启 dsh web。",
+  "balance": {
+    "enabled": true,
+    "threshold": 50,
+    "currency": "CNY",
+    "mode": "flash",
+    "flashMs": 12000,
+    "refreshMs": 300000,
+    "remindEveryMs": 1800000
+  }
+}
