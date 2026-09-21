@@ -61,11 +61,20 @@ Clawd 的「SSH 主机」模式是在远端开反向转发
 | 模式 | 判定 | 目标 |
 |---|---|---|
 | `ssh-remote` | 能读到并校验通过 `clawd-remote.json`（也认 `CLAWD_REMOTE_IDENTITY_PATH` 覆盖） | 只打 `identity.remotePort`，每次探测/上报都盖 nonce；**不做端口扫描**（该模式下只有这一个端点可达，扫别的只会产出 404） |
-| `local` | 无身份文件 | 上游行为不变：`runtime.json` 优先，再扫 `23333-23337` |
+| `local` | 没有身份文件，**且 Clawd 没有把本机标记成受管远端** | 上游行为不变：`runtime.json` 优先，再扫 `23333-23337` |
 
 身份文件**每次发现都重读**，不跨传输变更缓存：桌面端重新部署（换 nonce 或换端口）后，
-下一次上报失败即自愈。身份形状不合法时**不回落本地扫描**——这台机器就是受管远端，
-半成品身份应该表现为「不可达」，而不是把状态投给某个不相干的本地端口。
+下一次上报失败即自愈。身份解析分成三态，因为「没有文件」和「文件不可用」意思相反：
+
+| 状态 | 判定 | 行为 |
+|---|---|---|
+| `absent` | 三个候选路径都不存在，且没有受管远端标记 | 走本地扫描（上游行为） |
+| `invalid` | 文件存在但读不出 / 不是 JSON / 字段不合法，**或**没有文件但带受管远端标记 | **fail closed**：报 `clawd-unavailable`，绝不扫端口 |
+| `valid` | 校验通过 | 打 `identity.remotePort` + nonce |
+
+受管远端标记沿用 Clawd 自己的判据（`hooks/server-config.js` 的 `isSshSecureMode`）：`CLAWD_SSH_REMOTE=1`
+或 `clawd-ssh-secure-v1`（可用 `CLAWD_SSH_SECURE_MARKER_PATH` 覆盖）。这条是有意为之——半成品身份
+一旦回落扫描，这台远端上要是同时开着 Clawd 桌面端，另一台机器的状态乃至审批请求就会被投过去。
 
 ## 安装
 

@@ -296,3 +296,90 @@ test('approval round trip over the SSH-host transport', async (t) => {
   assert.equal(state.permissions[0].session_id, 'deepseek-harness:sess-approve');
   assert.deepEqual(state.permissions[0].tool_input, {}, 'no tool arguments are forwarded');
 });
+
+test('identity state: absent, unparsable and invalid are distinct', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'clawd-extras-ident-'));
+  try {
+    const missing = join(dir, 'never-deployed.json');
+    const broken = join(dir, 'broken.json');
+    const invalid = join(dir, 'invalid.json');
+    await writeFile(broken, '{ not json');
+    await writeFile(invalid, JSON.stringify({ version: 1, remotePort: 23333 }));
+
+    assert.equal((await __test.identityState({ paths: [missing] })).status, 'absent');
+    const unparsable = await __test.identityState({ paths: [broken] });
+    assert.equal(unparsable.status, 'invalid');
+    assert.equal(unparsable.reason, 'identity-unparsable');
+    const malformed = await __test.identityState({ paths: [invalid] });
+    assert.equal(malformed.status, 'invalid');
+    assert.equal(malformed.reason, 'identity-invalid');
+    assert.equal(malformed.identity, null, 'an unusable identity never yields a transport');
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// The claim the README makes ("a malformed identity must not fall back to the local
+// scan") is only observable through discovery, so assert on an injected probe: a
+// fail-closed resolve must not touch a single port.
+test('a malformed identity fails closed instead of scanning for a local Clawd', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'clawd-extras-failclosed-'));
+  try {
+    const invalid = join(dir, 'clawd-remote.json');
+    await writeFile(invalid, JSON.stringify({ version: 2, remotePort: 23333 }));
+    const probed = [];
+    const result = await __test.discoverUncached({
+      paths: [invalid],
+      probe: async (port) => { probed.push(port); return true },
+    });
+    assert.equal(result, null, 'unusable identity reads as unavailable');
+    assert.deepEqual(probed, [], 'no port may be probed after a malformed identity');
+  } finally {
+    clearCachedPortForTest();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('a managed-remote marker with no identity file also fails closed', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'clawd-extras-marker-'));
+  try {
+    const marker = join(dir, 'clawd-ssh-secure-v1');
+    await writeFile(marker, '');
+    const missing = join(dir, 'clawd-remote.json');
+    const probed = [];
+    const spyProbe = async (port) => { probed.push(port); return true };
+
+    // CLAWD_SSH_REMOTE=1 is what Clawd's own deployed hooks honour.
+    const byEnv = await __test.discoverUncached({ paths: [missing], env: { CLAWD_SSH_REMOTE: '1' }, probe: spyProbe });
+    assert.equal(byEnv, null);
+    // ...and so is the secure marker Clawd writes next to the identity file.
+    const byMarker = await __test.discoverUncached({
+      paths: [missing],
+      env: { CLAWD_SSH_SECURE_MARKER_PATH: marker },
+      probe: spyProbe,
+    });
+    assert.equal(byMarker, null);
+    assert.deepEqual(probed, [], 'a marked managed remote never scans locally');
+  } finally {
+    clearCachedPortForTest();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('an ordinary desktop host still resolves the local transport', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'clawd-extras-desktop-'));
+  try {
+    const probed = [];
+    const transport = await __test.discoverUncached({
+      paths: [join(dir, 'clawd-remote.json')],
+      env: {},
+      probe: async (port) => { probed.push(port); return port === 23334 },
+    });
+    assert.equal(transport?.source, 'local', 'no identity + no marker = upstream behaviour');
+    assert.equal(transport.port, 23334);
+    assert.ok(probed.length >= 1);
+  } finally {
+    clearCachedPortForTest();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
