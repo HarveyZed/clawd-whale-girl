@@ -2,11 +2,14 @@
   "schemaVersion": 1,
   "name": "鲸鱼娘 Whale Girl",
   "author": "art: vlln (MIT) · theme: local",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "鲸鱼娘桌宠主题。素材来自 vlln/whale-girl（MIT）。v1.5：sweeping 不再复用 working，改用可分辨的 think 占位（待专用的整理/清扫素材到位后替换）。",
   "_comment_license": "Artwork: vlln/whale-girl (MIT, Copyright (c) 2026 Sam Gao). Character is community fan-art; credit the author when redistributing.",
   "customization": {
     "petTint": false
+  },
+  "rendering": {
+    "svgChannel": "object"
   },
   "viewBox": {
     "x": 0,
@@ -52,12 +55,15 @@
   "sleepSequence": {
     "mode": "direct"
   },
+  "timings": {
+    "wakeDuration": 1500
+  },
   "states": {
     "idle": [
-      "idle.webp"
+      "idle-follow.svg"
     ],
     "thinking": [
-      "thinking.webp"
+      "thinking-follow.svg"
     ],
     "working": [
       "working.webp"
@@ -69,13 +75,13 @@
       "waking.webp"
     ],
     "error": [
-      "error.webp"
+      "error-follow.svg"
     ],
     "attention": [
       "attention.webp"
     ],
     "notification": [
-      "notification.webp"
+      "notification-follow.svg"
     ],
     "juggling": [
       "juggling.webp"
@@ -84,14 +90,14 @@
       "roam.webp"
     ],
     "sweeping": [
-      "thinking.webp"
+      "thinking-follow.svg"
     ]
   },
   "reactions": {
     "drag": {
-      "file": "react-drag.webp",
-      "fileLeft": "react-drag-left.webp",
-      "fileRight": "react-drag-right.webp"
+      "file": "drag-follow.svg",
+      "fileLeft": "drag-left-follow.svg",
+      "fileRight": "drag-right-follow.svg"
     },
     "clickLeft": {
       "file": "react-left.webp",

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- our layer: pendulum sway kept from the verified version (2.8s period); amplitude raised to +-2.5deg for the 0.68x display scale -->
+  <defs>
+    <style>
+      @keyframes sway { 0%,100% { transform: rotate(-2.5deg) } 50% { transform: rotate(2.5deg) } }
+      #stage { animation: sway 2.8s ease-in-out infinite; transform-origin: 128px 236px }
+    </style>
+  </defs>
+  <g id="stage">
+    <image href="react-drag.webp" x="0" y="0" width="256" height="256"/>
+  </g>
+</svg>

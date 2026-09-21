@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- our layer: amplitude tuned for the 0.68x display scale (target >= 2px on screen); upstream manifest used as baseline only -->
+  <defs>
+    <style>
+      @keyframes bob { 0%,100% { transform: translateY(0) rotate(0) } 35% { transform: translateY(-3px) rotate(-1.5deg) } 70% { transform: translateY(-2px) rotate(1.5deg) } }
+      #stage { animation: bob 1.9s ease-in-out infinite; transform-origin: 128px 236px }
+    </style>
+  </defs>
+  <g id="stage">
+    <image href="notification-0.png" x="0" y="0" width="256" height="256"/>
+  </g>
+</svg>

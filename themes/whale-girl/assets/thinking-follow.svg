@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- our layer: amplitude tuned for the 0.68x display scale (target >= 2px on screen); upstream manifest used as baseline only -->
+  <defs>
+    <style>
+      @keyframes hover { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-4px) } }
+      #stage { animation: hover 3.2s ease-in-out infinite }
+    </style>
+  </defs>
+  <g id="stage">
+    <image href="thinking-0.png" x="0" y="0" width="256" height="256"/>
+  </g>
+</svg>
