@@ -12,7 +12,7 @@
 | `client.js` | 浏览器半边：设置页的配置表单 |
 | `themes/whale-girl/` | 鲸鱼娘主题（素材源 + 可直接导入的 zip） |
 | `params.example.json` | 可热改的参数示例 |
-| `test/` | 18 项单测 |
+| `test/` | 22 项单测（18 项原样 + 4 项 SSH 主机传输），另有 `live-probe.mjs` 在线诊断反向隧道 |
 | `LICENSE` | MIT（主题美术另见文末署名） |
 
 ## 设计要点
@@ -44,8 +44,28 @@ Clawd 没有余额这个概念。它的配额环是给订阅制 agent 的限流�
 | F3 | 子代理 / 团队 | `subagent/descriptor`、`team/*`、`delegationDepth > 0` | `juggling` 状态 |
 | F4 | 上下文压缩 | `compaction/start` → `sweeping`；`compaction/end` → `idle` | `sweeping` 状态 |
 | F5 | 余额告警 | `credentials` → `GET /user/balance` | 独立虚拟会话，按阈值分档 |
+| F6 | 远程 DSH（SSH 主机） | `~/.claude/hooks/clawd-remote.json`（Clawd 部署时写入的身份文件） | 走 `x-clawd-routing-nonce` 打到反向转发的 `remotePort`，会话归到该主机名下 |
 
 状态 FIFO、阻塞式审批气泡、`SessionStart`/`SessionEnd` 映射从官方 bridge 原样保留。
+
+### F6：远端 DSH 怎么找到桌面端
+
+Clawd 的「SSH 主机」模式是在远端开反向转发
+`ssh -R 127.0.0.1:<remotePort>:127.0.0.1:<appPort>`，远端的一切请求都落到桌面端的
+`src/remote-ssh-ingress.js`。那个 ingress **只接受 `GET/POST /state` 与 `POST /permission`，
+且必须带该 profile 的 `x-clawd-routing-nonce`（32 位小写 hex），否则一律 404**。
+
+官方 bridge 的 client 既不带这个头、也只在本地找 `~/.clawd/runtime.json`，所以在 SSH 主机模式下
+它永远探测不到桌面端（日志里只有 `clawd-unavailable`）。本插件把传输分成两条，发现时二选一：
+
+| 模式 | 判定 | 目标 |
+|---|---|---|
+| `ssh-remote` | 能读到并校验通过 `clawd-remote.json`（也认 `CLAWD_REMOTE_IDENTITY_PATH` 覆盖） | 只打 `identity.remotePort`，每次探测/上报都盖 nonce；**不做端口扫描**（该模式下只有这一个端点可达，扫别的只会产出 404） |
+| `local` | 无身份文件 | 上游行为不变：`runtime.json` 优先，再扫 `23333-23337` |
+
+身份文件**每次发现都重读**，不跨传输变更缓存：桌面端重新部署（换 nonce 或换端口）后，
+下一次上报失败即自愈。身份形状不合法时**不回落本地扫描**——这台机器就是受管远端，
+半成品身份应该表现为「不可达」，而不是把状态投给某个不相干的本地端口。
 
 ## 安装
 
@@ -58,6 +78,17 @@ dsh plugin --profile web add "$PWD"
 ```
 
 依赖零安装（只用 Node 标准库 + DSH 自带服务），克隆下来直接 add。
+
+**远端（Clawd SSH 主机）不需要额外配置**：插件靠 Clawd 部署时写入的 `clawd-remote.json` 自动认出
+该模式（F6）。排查入口——桌面端"没反应"时先在远端跑：
+
+```bash
+node test/live-probe.mjs
+```
+
+它会区分三种长得一样的故障：`nothing is listening on 127.0.0.1:<port>`＝桌面端的 SSH 主机会话没连着
+（反向转发没建）；`404 from the Clawd ingress`＝nonce 过期（桌面端重新配对过该主机）；
+`OK`＝通。
 
 主题：把 `themes/whale-girl/` 复制进 Clawd 用户主题目录（Windows：`%APPDATA%\clawd-on-desk\themes\`），或在「设置 → 主题 → 导入主题 zip」里选 `themes/whale-girl.zip`。
 
@@ -107,7 +138,7 @@ dsh plugin --profile web add "$PWD"
 | Clawd 没有余额字段或接口 | 余额只能借状态动画表达，做不出独立余额牌 | 需上游改 Clawd |
 | DSH 没有 worktree 事件 | `carrying` 无法映射 | DSH 事件面 |
 | DSH 只有「新增子代理」事件，没有「结束」事件 | 父会话会一直 `juggling`，直到下一次工具事件覆盖 | DSH 事件面 |
-| 兼容性验证不完备 | 只在 Windows x64 + DSH `0.1.6-alpha.2` 上跑过。macOS / Linux 未验证；其他 DSH 版本未验证，Clawd Doctor 可能提示未安装（其契约表不含 `0.1.6-alpha.2`） | 缺跨平台、跨版本测试环境 |
+| 兼容性验证不完备 | 插件本体（F1–F5）只在 Windows x64 + DSH `0.1.6-alpha.2` 上跑过。F6 传输在 Linux（Ubuntu 26.04）+ DSH `0.1.2-rc.1` 上做过离线验证（假 ingress：nonce 正/负用例、发现、事件映射、审批三态），但**未与真实桌面端跑过端到端**（写这段时该主机的反向转发没建）。其他 DSH 版本未验证，Clawd Doctor 可能提示未安装 | 缺跨平台、跨版本的真实端到端环境 |
 | 设置页文案仅中文 | DSH 支持多语言，这里 label 是硬编码 | 本仓库未接 locale |
 
 ### 未验证部分我的推测
@@ -125,7 +156,6 @@ dsh plugin --profile web add "$PWD"
 | 事项 | 说明 |
 |---|---|
 | 补齐鲸鱼娘素材 | `sweeping` 用「整理/清扫」姿势替代借用 `thinking`（需要一张俯身收拾的图，姿势与 `thinking` 的手托下巴区分开）；顺带把只有 2–3 帧的状态补到流畅 |
-| 远程 DSH agent | 现在 Clawd 看不见远端 DSH（如 192.168.x.x）：Clawd Remote SSH 的部署清单不含 DSH，bridge 也硬编码 `127.0.0.1` 与端口 `23333-23337`。计划走反向隧道 + 独立 agent 身份/前缀 |
 | 上下文窗口取真值 | 用 `sessionQuery.observeSession()` 的 `contextPressure` 投影替代兜底常量（需先验证该 API 的 lease 释放与取值形状） |
 
 ## 许可
