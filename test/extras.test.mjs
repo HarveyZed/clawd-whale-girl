@@ -1,7 +1,7 @@
 // Unit tests for the extended DSH -> Clawd bridge. Run: node --test test/extras.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFile, rm } from 'node:fs/promises';
+import { writeFile, rm, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -12,7 +12,7 @@ import {
 } from '../lib/balance.js';
 import {
   apply, createStateSender, createVirtualSession, canonicalSessionId, statePayload,
-  readParamsFile, mergeParams,
+  readParamsFile, mergeParams, readPackageVersion, PLUGIN_VERSION,
 } from '../lib/index.js';
 
 // ── official mapping must stay unchanged ─────────────────────────────────────
@@ -356,4 +356,15 @@ test('balance watcher drives an isolated virtual session', async () => {
   balance = { is_available: true, balance_infos: [{ currency: 'CNY', total_balance: '3.00' }] };
   await new Promise((r) => setTimeout(r, 1100));
   assert.equal(posted[posted.length - 1].event, 'SessionEnd');
+});
+
+// The restart banner is how you tell which build is live, so it must not be a
+// second source of truth: bumping package.json has to be enough.
+test('the banner version comes from package.json', async () => {
+  const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  assert.equal(PLUGIN_VERSION, pkg.version);
+  assert.equal(readPackageVersion(), pkg.version);
+  assert.equal(readPackageVersion(() => { throw new Error('missing'); }), 'unknown');
+  assert.equal(readPackageVersion(() => '{ not json'), 'unknown');
+  assert.equal(readPackageVersion(() => '{"version":""}'), 'unknown');
 });
