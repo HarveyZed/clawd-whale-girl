@@ -12,7 +12,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { once } from 'node:events';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -378,6 +378,50 @@ test('an ordinary desktop host still resolves the local transport', async () => 
     assert.equal(transport?.source, 'local', 'no identity + no marker = upstream behaviour');
     assert.equal(transport.port, 23334);
     assert.ok(probed.length >= 1);
+  } finally {
+    clearCachedPortForTest();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// CLAWD_REMOTE_IDENTITY_PATH is exclusive: Clawd's own resolveRemoteIdentityPath
+// honours it instead of the standard location, so a set-but-unusable override
+// must fail closed rather than quietly using a *different* identity. A silent
+// fallback here is the same class of bug as the local-scan fallback above: the
+// state would be reported under whatever identity happened to be readable.
+test('a set-but-unusable identity override is exclusive and fails closed', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'clawd-extras-exclusive-'));
+  try {
+    // A perfectly valid identity in the default location...
+    const home = join(dir, 'home');
+    await mkdir(join(home, '.claude', 'hooks'), { recursive: true });
+    await writeFile(join(home, '.claude', 'hooks', 'clawd-remote.json'), JSON.stringify({
+      version: 2, layoutVersion: 1, runtimeKey: 'account-default', profileId: 'defaultprofile1',
+      installId: 'f'.repeat(64), remotePort: 23334, routingNonce: 'b'.repeat(32), deployedAt: Date.now(),
+    }));
+    // ...plus an override pointing at something unusable.
+    const override = join(dir, 'override.json');
+    await writeFile(override, '{ not json');
+    const env = { CLAWD_REMOTE_IDENTITY_PATH: override };
+
+    const state = await __test.identityState({ env, home });
+    assert.equal(state.status, 'invalid',
+      'a set override is exclusive: the valid default identity must not be used');
+    assert.equal(state.reason, 'identity-unparsable');
+
+    const probed = [];
+    const transport = await __test.discoverUncached({
+      env, home, probe: async (port) => { probed.push(port); return true },
+    });
+    assert.equal(transport, null, 'unusable override reads as unavailable');
+    assert.deepEqual(probed, [], 'no port may be probed');
+
+    // The other half of exclusivity, matching Clawd: an override that simply is
+    // not there yet (and no managed-remote marker) is *absent*, not invalid —
+    // this host has never been paired, so upstream local discovery applies.
+    const missingEnv = { CLAWD_REMOTE_IDENTITY_PATH: join(dir, 'not-deployed.json') };
+    const missingState = await __test.identityState({ env: missingEnv, home });
+    assert.equal(missingState.status, 'absent');
   } finally {
     clearCachedPortForTest();
     await rm(dir, { recursive: true, force: true });

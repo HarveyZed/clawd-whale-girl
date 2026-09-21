@@ -12,7 +12,7 @@
 | `client.js` | 浏览器半边：设置页的配置表单 |
 | `themes/whale-girl/` | 鲸鱼娘主题（素材源 + 可直接导入的 zip） |
 | `params.example.json` | 可热改的参数示例 |
-| `test/` | 22 项单测（18 项原样 + 4 项 SSH 主机传输），另有 `live-probe.mjs` 在线诊断反向隧道 |
+| `test/` | 27 项单测（18 项原样 + 9 项 SSH 主机传输：发现与 nonce 正负用例、端到端、审批往返、身份三态、fail closed、override 排他），另有 `live-probe.mjs` 在线诊断反向隧道 |
 | `LICENSE` | MIT（主题美术另见文末署名） |
 
 ## 设计要点
@@ -60,21 +60,34 @@ Clawd 的「SSH 主机」模式是在远端开反向转发
 
 | 模式 | 判定 | 目标 |
 |---|---|---|
-| `ssh-remote` | 能读到并校验通过 `clawd-remote.json`（也认 `CLAWD_REMOTE_IDENTITY_PATH` 覆盖） | 只打 `identity.remotePort`，每次探测/上报都盖 nonce；**不做端口扫描**（该模式下只有这一个端点可达，扫别的只会产出 404） |
-| `local` | 没有身份文件，**且 Clawd 没有把本机标记成受管远端** | 上游行为不变：`runtime.json` 优先，再扫 `23333-23337` |
+| `ssh-remote` | 能读到并校验通过 `clawd-remote.json`（`CLAWD_REMOTE_IDENTITY_PATH` 为其排他覆盖） | 只打 `identity.remotePort`，每次探测/上报都盖 nonce；**不做端口扫描**（该模式下只有这一个端点可达，扫别的只会产出 404） |
+| `local` | 所有候选都没有身份文件，**且 Clawd 没有把本机标记成受管远端** | 上游行为不变：`runtime.json` 优先，再扫 `23333-23337` |
 
 身份文件**每次发现都重读**，不跨传输变更缓存：桌面端重新部署（换 nonce 或换端口）后，
 下一次上报失败即自愈。身份解析分成三态，因为「没有文件」和「文件不可用」意思相反：
 
 | 状态 | 判定 | 行为 |
 |---|---|---|
-| `absent` | 三个候选路径都不存在，且没有受管远端标记 | 走本地扫描（上游行为） |
+| `absent` | 所有候选路径都不存在，且没有受管远端标记 | 走本地扫描（上游行为） |
 | `invalid` | 文件存在但读不出 / 不是 JSON / 字段不合法，**或**没有文件但带受管远端标记 | **fail closed**：报 `clawd-unavailable`，绝不扫端口 |
 | `valid` | 校验通过 | 打 `identity.remotePort` + nonce |
 
 受管远端标记沿用 Clawd 自己的判据（`hooks/server-config.js` 的 `isSshSecureMode`）：`CLAWD_SSH_REMOTE=1`
 或 `clawd-ssh-secure-v1`（可用 `CLAWD_SSH_SECURE_MARKER_PATH` 覆盖）。这条是有意为之——半成品身份
 一旦回落扫描，这台远端上要是同时开着 Clawd 桌面端，另一台机器的状态乃至审批请求就会被投过去。
+
+身份候选按顺序解析，其中 `CLAWD_REMOTE_IDENTITY_PATH` **排他**：设了它就只认它，不再尝试默认位置
+（与 Clawd 的 `resolveRemoteIdentityPath` 一致）。默认顺序是 `~/.claude/hooks/clawd-remote.json`
+（Clawd 部署 hook 时写入的那个），再到 `~/.clawd/clawd-remote.json`——后者是本插件的兜底候选，
+Clawd 自身不认这个路径。任一候选**存在但不可用**就立刻判 `invalid` 并停止，既不看后面的候选、
+也不扫端口；这就是上面 fail closed 的实现方式。受管标记的查找位置**不跟随 identity 覆盖**
+（Clawd 的标记路径同样不跟随），挪 identity 不会把"这机器是受管远端"的证据一起挪走。
+
+**验证范围**：F6 传输已在 Linux（Ubuntu 26.04）+ DSH `0.1.2-rc.1` + 真实 Clawd 桌面端上端到端跑通
+（探针通过、连上后上报零拒绝、F1 上下文取到真值、F5 余额轮询成功）。**F6 不依赖任何 DSH 版本相关面**
+——它只用 Clawd 侧的 identity 文件与 ingress 的 nonce 契约，所以在 `0.1.2-rc.1` 上跑通意味着更旧的
+版本预期同样可用（含 Clawd 契约表里的 `0.1.1-rc.2` / `0.1.0-rc.6`），前提是该版本能正常加载插件
+并投递 `session/*` 事件（F1–F5 的事件面差异仍在）。
 
 ## 安装
 
@@ -147,7 +160,7 @@ node test/live-probe.mjs
 | Clawd 没有余额字段或接口 | 余额只能借状态动画表达，做不出独立余额牌 | 需上游改 Clawd |
 | DSH 没有 worktree 事件 | `carrying` 无法映射 | DSH 事件面 |
 | DSH 只有「新增子代理」事件，没有「结束」事件 | 父会话会一直 `juggling`，直到下一次工具事件覆盖 | DSH 事件面 |
-| 兼容性验证不完备 | 插件本体（F1–F5）只在 Windows x64 + DSH `0.1.6-alpha.2` 上跑过。F6 传输在 Linux（Ubuntu 26.04）+ DSH `0.1.2-rc.1` 上做过离线验证（假 ingress：nonce 正/负用例、发现、事件映射、审批三态），但**未与真实桌面端跑过端到端**（写这段时该主机的反向转发没建）。其他 DSH 版本未验证，Clawd Doctor 可能提示未安装 | 缺跨平台、跨版本的真实端到端环境 |
+| 兼容性验证不完备 | 插件本体（F1–F5）只在 Windows x64 + DSH `0.1.6-alpha.2` 上跑过；F2/F3/F4 的端到端行为与其他平台组合未验证。其他 DSH 版本未验证，Clawd Doctor 可能提示未安装（其契约表不含 `0.1.6-alpha.2`） | 缺跨平台、跨版本的真实端到端环境 |
 | 设置页文案仅中文 | DSH 支持多语言，这里 label 是硬编码 | 本仓库未接 locale |
 
 ### 未验证部分我的推测
