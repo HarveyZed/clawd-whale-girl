@@ -1,6 +1,6 @@
 {
   "name": "dsh-clawd-extras",
-  "version": "0.5.6",
+  "version": "0.5.7",
   "private": true,
   "type": "module",
   "description": "Clawd on Desk bridge for DeepSeek Harness, extended: context usage, approval/juggling/compaction signals, balance alerts.",

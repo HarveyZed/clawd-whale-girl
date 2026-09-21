@@ -180,7 +180,8 @@ node test/live-probe.mjs
 
 | 事项 | 说明 |
 |---|---|
-| 补齐鲸鱼娘素材 | `sweeping` 用「整理/清扫」姿势替代借用 `thinking`（需要一张俯身收拾的图，姿势与 `thinking` 的手托下巴区分开）；顺带把只有 2–3 帧的状态补到流畅 |
+| 补齐鲸鱼娘素材 | 上游每张精灵图只有 2–3 帧，补帧只能靠插值，会牺牲现在「与原图逐像素一致」的锐度——要做就先做运动补偿原型，并用开发侧的验收脚本（逐帧比对上游 RMSE + 运动可见性检查）确认没有变软；`sweeping` 保持借用 `thinking`（「?」与 `working` 的灯泡可区分，上游没有清扫素材） |
+| 主题尚未用上的插槽 | 主题卡片缺 `preview` 图；`idleAnimations`（用户可自选待机姿势）与 `sleepSequence: full`（打哈欠 → 打盹 → 倒下 → 睡着，需要 4 个额外状态与 `timings.collapseDuration`）都未启用 |
 | 上下文窗口取真值 | 用 `sessionQuery.observeSession()` 的 `contextPressure` 投影替代兜底常量（需先验证该 API 的 lease 释放与取值形状） |
 
 ## 许可
