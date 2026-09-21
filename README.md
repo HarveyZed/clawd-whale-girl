@@ -33,6 +33,8 @@ Clawd 没有余额这个概念。它的配额环是给订阅制 agent 的限流�
 | `request/context` 会写进会话日志，但**不会送达插件的 `session/event` 监听器** | 上下文窗口用可配置兜底 `contextWindowFallback`，真收到事件时覆盖 |
 | DSH 的 bundle/patch 只在进程启动时 compose，宿主 HMR 又排除 `node_modules`（插件正是从 `profiles/web/node_modules/...` 解析），改配置必重启 | 插件自己盯 `params.json`：每 3 秒看 mtime，改了就地生效，并顺手触发一次余额轮询 |
 
+排查时两处别误判：`debug.log` 第一行是启动横幅 `dsh-clawd-extras v<版本> starting`，版本**直接读自 `package.json`**（不另设常量，发布只改 manifest）；重启 `dsh web` 后会出现**一条** `post dropped (204): SessionStart`——该会话在 Clawd 侧仍算 active，重启后补发的 `SessionStart` 被 fence 判为 `active-session-restart` 回 204，紧随其后的 `UserPromptSubmit` / `PreToolUse` 照常送达，不是故障。
+
 ## 补了什么
 
 `F1`–`F5` 是全文和源码注释通用的索引（`F` 只是 feature 的流水号，没有别的含义）。配置表、代码注释里写「（F3）」就是指向下表的这一行。
