@@ -123,7 +123,7 @@ window.__ModuleLoader__.load({
           function (v) { update('subagentJuggling', v); }),
         checkboxRow('压缩动画', 'compaction -> sweeping', cfg.compactionSweeping,
           function (v) { update('compactionSweeping', v); }),
-        numberRow('上下文窗口兜底', 'request/context 收不到时使用', cfg.contextWindowFallback,
+        numberRow('上下文窗口兜底', 'contextPressure 投影与 request/context 都拿不到时使用', cfg.contextWindowFallback,
           function (v) { update('contextWindowFallback', v); }),
         React.createElement('div', { className: 'cxp-row' },
           React.createElement('span', { className: 'cxp-status' }, status),

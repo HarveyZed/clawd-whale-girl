@@ -57,6 +57,18 @@ test('context usage payload matches Clawd wire shape', () => {
   assert.deepEqual(contextUsagePayload({ surfaceTokens: 1 }, undefined), { used: 1 });
   assert.equal(contextUsagePayload({ surfaceTokens: -1 }, 10), null);
   assert.equal(contextUsagePayload(null, 10), null);
+  // contextPressure wins: prompt-side occupancy and the request's real window.
+  assert.deepEqual(
+    contextUsagePayload({ surfaceTokens: 10 }, 100, { projectedTokens: 55, pressureTokens: 50, contextWindow: 200 }),
+    { used: 55, limit: 200 },
+  );
+  assert.deepEqual(
+    contextUsagePayload({ surfaceTokens: 10 }, 100, { pressureTokens: 33 }),
+    { used: 33, limit: 100 },
+  );
+  // A projection without numerators/window must not hide the measured surface.
+  assert.deepEqual(contextUsagePayload({ surfaceTokens: 10 }, 100, { sampledSurfaceTokens: 77 }), { used: 10, limit: 100 });
+  assert.deepEqual(contextUsagePayload({ surfaceTokens: 10 }, 100, null), { used: 10, limit: 100 });
 });
 
 // ── balance tiers ────────────────────────────────────────────────────────────
@@ -243,6 +255,8 @@ function collectApply(configOverrides = {}, env = {}) {
     if (key === 'credentials') cb({ credentials: env.credentials ?? null });
     if (key === 'approval') env.onApproval?.(cb);
   };
+  // Plugin reads sessionProjections lazily through ctx.get().
+  ctx.get = (name) => (name === 'sessionProjections' ? env.sessionProjections ?? null : null);
   apply(ctx, {
     balance: { enabled: false },
     permissionBubble: false,
@@ -280,8 +294,8 @@ test('apply() wires session handlers and posts context usage + extras', async ()
 });
 
 test('context usage falls back to the configured window when request/context never arrives', async () => {
-  // Measured in production: request/context is not delivered to this plugin's
-  // session/event listener, so the limit must come from contextWindowFallback.
+  // Hosts that never emit request/context for a session still need a denominator:
+  // the configured fallback is the last resort, after the projection and the live map.
   const session = { id: 'session-noctx', seq: 1, header: {} };
   const { ctx, posted } = collectApply({ contextWindowFallback: 500000 }, {
     tokenMeter: { measure: () => ({ surfaceTokens: 12345 }) },
@@ -300,6 +314,32 @@ test('request/context overrides the fallback window', async () => {
   ctx.handlers.get('session/event')(session, { type: 'tool/call', seq: 3, data: { name: 'bash' } });
   await new Promise((r) => setTimeout(r, 40));
   assert.deepEqual(posted[0].context_usage, { used: 999, limit: 200000 });
+});
+
+test('contextPressure projection supplies occupancy and window without any live event', async () => {
+  const session = { id: 'session-pressure', seq: 1, header: {} };
+  const { ctx, posted } = collectApply({ contextWindowFallback: 500000 }, {
+    tokenMeter: { measure: () => ({ surfaceTokens: 999 }) },
+    sessionProjections: {
+      stateOf: (_session, key) => (key === 'contextPressure'
+        ? { contextWindow: 1000000, pressureTokens: 300000, projectedTokens: 305998 }
+        : undefined),
+    },
+  });
+  ctx.handlers.get('session/event')(session, { type: 'tool/call', seq: 2, data: { name: 'bash' } });
+  await new Promise((r) => setTimeout(r, 40));
+  assert.deepEqual(posted[0].context_usage, { used: 305998, limit: 1000000 });
+});
+
+test('contextPressure without a window keeps the configured fallback denominator', async () => {
+  const session = { id: 'session-pressure-nowindow', seq: 1, header: {} };
+  const { ctx, posted } = collectApply({ contextWindowFallback: 500000 }, {
+    tokenMeter: { measure: () => ({ surfaceTokens: 999 }) },
+    sessionProjections: { stateOf: () => ({ pressureTokens: 1234 }) },
+  });
+  ctx.handlers.get('session/event')(session, { type: 'tool/call', seq: 2, data: { name: 'bash' } });
+  await new Promise((r) => setTimeout(r, 40));
+  assert.deepEqual(posted[0].context_usage, { used: 1234, limit: 500000 });
 });
 
 test('subagent session reports juggling and stays non-headless', async () => {
