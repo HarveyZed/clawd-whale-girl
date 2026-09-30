@@ -162,7 +162,7 @@ node test/live-probe.mjs
 | Clawd 没有余额字段或接口 | 余额只能借状态动画表达，做不出独立余额牌 | 需上游改 Clawd |
 | DSH 没有 worktree 事件 | `carrying` 无法映射 | DSH 事件面 |
 | DSH 只有「新增子代理」事件，没有「结束」事件 | 父会话会一直 `juggling`，直到下一次工具事件覆盖 | DSH 事件面 |
-| 兼容性验证不完备 | 插件本体（F1–F5）只在 Windows x64 + DSH `0.1.6-alpha.2` 上跑过（F4 的 `compaction/end` 修正是用真实会话日志重放确认的）；远端那台（Linux + `0.1.2-rc.1`）已实测 F1–F6：F2 审批三次完整往返（远端触发 → 桌宠 `notification` → 气泡 Allow → 决定回传 DSH）、F3 子代理会话（`headless=0`，juggling 后以 `SessionEnd` 收场）、F4 压缩（`PreCompact` → `PostCompact`，13 秒内退出 `sweeping`，未卡住）。其他 DSH 版本未验证，Clawd Doctor 可能提示未安装（其契约表不含 `0.1.6-alpha.2`） | 缺跨平台、跨版本的真实端到端环境 |
+| 兼容性验证不完备 | 插件本体（F1–F5）最初只在 Windows x64 + DSH `0.1.6-alpha.2` 上跑过（F4 的 `compaction/end` 修正是用真实会话日志重放确认的）；此后日常宿主换成**桌面端 DSH `0.2.0-rc.2`**（自 2026-09-29 起），其上已实测 F1（含新的 `contextPressure` 取值）、F3（子代理 → `juggling`）、F5（余额轮询与告警），F2 / F4 未在该宿主上单独复现；远端那台（Linux + `0.1.2-rc.1`）已实测 F1–F6：F2 审批三次完整往返（远端触发 → 桌宠 `notification` → 气泡 Allow → 决定回传 DSH）、F3 子代理会话（`headless=0`，juggling 后以 `SessionEnd` 收场）、F4 压缩（`PreCompact` → `PostCompact`，13 秒内退出 `sweeping`，未卡住）。其他 DSH 版本未验证，Clawd Doctor 可能提示未安装（其契约表不含 `0.1.6-alpha.2`） | 缺跨平台、跨版本的真实端到端环境 |
 | 子代理会话的每个事件都被标成 `SubagentStart` | 只要会话是子代理，映射就短路成 `juggling`——实测一个子代理会话 5 秒内产生 **157 条**同名上报，Clawd 侧日志随之膨胀，且该会话自己的工具失败等事件不会表现为 `error`。画面不受影响：Clawd 的 subagent tracker 对「无 id 的重复启动」是幂等的，juggling 档位仍按 1 个子代理计 | 本仓库未改 |
 | 设置页文案仅中文 | DSH 支持多语言，这里 label 是硬编码 | 本仓库未接 locale |
 
